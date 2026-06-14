@@ -29,6 +29,7 @@ const float AA_POS_Y_MUT = 270.0f;
 const float FITA_Y_MUT = AA_POS_Y_MUT + BALL_R + 15.0f;
 
 RenderData g_RenderData;
+std::mutex g_RenderMutex;
 
 GLFWwindow* g_Window = nullptr;
 unsigned int shapeVAO = 0, shapeVBO = 0, instanceVBO = 0;
@@ -45,8 +46,10 @@ void teclado_callback(GLFWwindow* window, int key, int scancode, int action, int
     if (action == GLFW_PRESS || action == GLFW_REPEAT) {
         float velocidade = 32.0f;
         if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) {
+            std::lock_guard<std::mutex> lock(g_RenderMutex);
             g_RenderData.cameraOffsetX += velocidade;
         } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_A) {
+            std::lock_guard<std::mutex> lock(g_RenderMutex);
             g_RenderData.cameraOffsetX = std::max(0.0f, g_RenderData.cameraOffsetX - velocidade);
         }
     }
@@ -264,14 +267,17 @@ Vec3 getNucleotideTextColor(const std::string& base) {
 void runEngineLoop() {
     if (g_Window == nullptr) return;
 
-    // Foca camera no primeiro ponto divergente na inicializacao
-    int posicao_div = -1;
-    if (!g_RenderData.divergentPositions.empty()) {
-        posicao_div = g_RenderData.divergentPositions[0];
-    }
-    if (posicao_div >= 0 && g_RenderData.cameraOffsetX == 0.0f) {
-        float cx = posicao_div * ADVANCE_CODON + CODON_W / 2.0f;
-        g_RenderData.cameraOffsetX = std::max(0.0f, cx - (SCR_WIDTH - 34.0f) / 2.0f);
+    // foca camera no primeiro ponto divergente na inicializacao sob lock
+    {
+        std::lock_guard<std::mutex> lock(g_RenderMutex);
+        int posicao_div = -1;
+        if (!g_RenderData.divergentPositions.empty()) {
+            posicao_div = g_RenderData.divergentPositions[0];
+        }
+        if (posicao_div >= 0 && g_RenderData.cameraOffsetX == 0.0f) {
+            float cx = posicao_div * ADVANCE_CODON + CODON_W / 2.0f;
+            g_RenderData.cameraOffsetX = std::max(0.0f, cx - (SCR_WIDTH - 34.0f) / 2.0f);
+        }
     }
 
     // Calcula escala do frame buffer para High-DPI
@@ -289,14 +295,21 @@ void runEngineLoop() {
         glClearColor(0.07f, 0.07f, 0.09f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
+        // copia dados de renderizacao sob lock do mutex
+        RenderData localData;
+        {
+            std::lock_guard<std::mutex> lock(g_RenderMutex);
+            localData = g_RenderData;
+        }
+
         std::vector<InstanceData> instances;
 
         int divIndex = -1;
-        if (!g_RenderData.divergentPositions.empty()) {
-            divIndex = g_RenderData.divergentPositions[0];
+        if (!localData.divergentPositions.empty()) {
+            divIndex = localData.divergentPositions[0];
         }
 
-        int indiceBaseInserida = g_RenderData.insertedBaseIndex;
+        int indiceBaseInserida = localData.insertedBaseIndex;
 
         // Linha divisoria divergente no fundo
         if (divIndex >= 0) {
@@ -313,7 +326,7 @@ void runEngineLoop() {
         }
 
         // Linhas de conexao dos aminoacidos na fita superior
-        size_t nRef = g_RenderData.refAminoAcids.size();
+        size_t nRef = localData.refAminoAcids.size();
         for (size_t i = 0; i < nRef; ++i) {
             float cx = i * ADVANCE_CODON + CODON_W / 2.0f;
 
@@ -343,7 +356,7 @@ void runEngineLoop() {
         }
 
         // Linhas de conexao dos aminoacidos na fita inferior
-        size_t nMut = g_RenderData.mutAminoAcids.size();
+        size_t nMut = localData.mutAminoAcids.size();
         for (size_t i = 0; i < nMut; ++i) {
             float cx = i * ADVANCE_CODON + CODON_W / 2.0f;
 
@@ -375,20 +388,20 @@ void runEngineLoop() {
         }
 
         // Renderizacao dos nucleotideos
-        size_t nRefNuc = g_RenderData.refNucleotides.size();
+        size_t nRefNuc = localData.refNucleotides.size();
         for (size_t j = 0; j < nRefNuc; ++j) {
             float cx = (j / 3) * ADVANCE_CODON + (j % 3) * (NUC_W + NUC_GAP) + NUC_W / 2.0f;
             InstanceData nuc;
             nuc.offset = Vec2(cx, FITA_Y_REF + NUC_H / 2.0f);
             nuc.scale = Vec2(NUC_W, NUC_H);
-            nuc.color = getNucleotideColor(g_RenderData.refNucleotides[j]);
-            nuc.borderColor = getNucleotideBorderColor(g_RenderData.refNucleotides[j]);
+            nuc.color = getNucleotideColor(localData.refNucleotides[j]);
+            nuc.borderColor = getNucleotideBorderColor(localData.refNucleotides[j]);
             nuc.shapeType = 0.0f;
             nuc.dashed = 0.0f;
             instances.push_back(nuc);
         }
 
-        size_t nMutNuc = g_RenderData.mutNucleotides.size();
+        size_t nMutNuc = localData.mutNucleotides.size();
         for (size_t j = 0; j < nMutNuc; ++j) {
             float cx = (j / 3) * ADVANCE_CODON + (j % 3) * (NUC_W + NUC_GAP) + NUC_W / 2.0f;
             bool isInsertedBase = (indiceBaseInserida >= 0 && j == (size_t)indiceBaseInserida);
@@ -396,8 +409,8 @@ void runEngineLoop() {
             InstanceData nuc;
             nuc.offset = Vec2(cx, FITA_Y_MUT + NUC_H / 2.0f);
             nuc.scale = Vec2(NUC_W, NUC_H);
-            nuc.color = isInsertedBase ? Vec3(0.988f, 0.922f, 0.922f) : getNucleotideColor(g_RenderData.mutNucleotides[j]);
-            nuc.borderColor = isInsertedBase ? Vec3(0.9f, 0.1f, 0.1f) : getNucleotideBorderColor(g_RenderData.mutNucleotides[j]);
+            nuc.color = isInsertedBase ? Vec3(0.988f, 0.922f, 0.922f) : getNucleotideColor(localData.mutNucleotides[j]);
+            nuc.borderColor = isInsertedBase ? Vec3(0.9f, 0.1f, 0.1f) : getNucleotideBorderColor(localData.mutNucleotides[j]);
             nuc.shapeType = 0.0f;
             nuc.dashed = isInsertedBase ? 1.0f : 0.0f;
             instances.push_back(nuc);
@@ -498,7 +511,7 @@ void runEngineLoop() {
         glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(InstanceData) * instances.size(), instances.data());
 
         float view[16];
-        setTranslationMatrix(34.0f - g_RenderData.cameraOffsetX, 0.0f, view);
+        setTranslationMatrix(34.0f - localData.cameraOffsetX, 0.0f, view);
         glUniformMatrix4fv(shapeViewLoc, 1, GL_FALSE, view);
 
         glEnable(GL_SCISSOR_TEST);
@@ -521,9 +534,9 @@ void runEngineLoop() {
         // letras fita superior
         for (size_t j = 0; j < nRefNuc; ++j) {
             float cx = (j / 3) * ADVANCE_CODON + (j % 3) * (NUC_W + NUC_GAP);
-            std::string nucStr = g_RenderData.refNucleotides[j];
+            std::string nucStr = localData.refNucleotides[j];
             float nucScale = 0.58f;
-            char nucChar = g_RenderData.refNucleotides[j][0];
+            char nucChar = localData.refNucleotides[j][0];
             Character ch = Characters[nucChar];
             float nucX = cx + (NUC_W - (ch.Advance >> 6) * nucScale) / 2.0f;
             float nucY = FITA_Y_REF + NUC_H / 2.0f + (ch.Bearing.y * nucScale) / 2.0f;
@@ -540,11 +553,11 @@ void runEngineLoop() {
         for (size_t j = 0; j < nMutNuc; ++j) {
             float cx = (j / 3) * ADVANCE_CODON + (j % 3) * (NUC_W + NUC_GAP);
             bool isInsertedBase = (indiceBaseInserida >= 0 && j == (size_t)indiceBaseInserida);
-            Vec3 txtCol = isInsertedBase ? Vec3(0.9f, 0.1f, 0.1f) : getNucleotideTextColor(g_RenderData.mutNucleotides[j]);
+            Vec3 txtCol = isInsertedBase ? Vec3(0.9f, 0.1f, 0.1f) : getNucleotideTextColor(localData.mutNucleotides[j]);
             
-            std::string nucStr = g_RenderData.mutNucleotides[j];
+            std::string nucStr = localData.mutNucleotides[j];
             float nucScale = 0.58f;
-            char nucChar = g_RenderData.mutNucleotides[j][0];
+            char nucChar = localData.mutNucleotides[j][0];
             Character ch = Characters[nucChar];
             float nucX = cx + (NUC_W - (ch.Advance >> 6) * nucScale) / 2.0f;
             float nucY = FITA_Y_MUT + NUC_H / 2.0f + (ch.Bearing.y * nucScale) / 2.0f;
@@ -564,14 +577,14 @@ void runEngineLoop() {
         for (size_t i = 0; i < nRef; ++i) {
             float cx = i * ADVANCE_CODON + CODON_W / 2.0f;
             
-            char aaChar = g_RenderData.refAminoAcids[i][0];
+            char aaChar = localData.refAminoAcids[i][0];
             Character ch = Characters[aaChar];
             float txtScale = 0.58f;
             float text_w = (ch.Advance >> 6) * txtScale;
             float xPos = cx - (text_w / 2.0f);
             float yPos = AA_POS_Y_REF + (ch.Bearing.y - ch.Size.y / 2.0f) * txtScale;
             
-            RenderText(g_RenderData.refAminoAcids[i], xPos, yPos, txtScale, Vec3(0.031f, 0.314f, 0.255f), true);
+            RenderText(localData.refAminoAcids[i], xPos, yPos, txtScale, Vec3(0.031f, 0.314f, 0.255f), true);
             
             int val = i + 1;
             float numScale = 0.48f;
@@ -595,14 +608,14 @@ void runEngineLoop() {
                 txtCol = Vec3(0.031f, 0.314f, 0.255f);
             }
 
-            char aaChar = g_RenderData.mutAminoAcids[i][0];
+            char aaChar = localData.mutAminoAcids[i][0];
             Character ch = Characters[aaChar];
             float txtScale = 0.58f;
             float text_w = (ch.Advance >> 6) * txtScale;
             float xPos = cx - (text_w / 2.0f);
             float yPos = AA_POS_Y_MUT + (ch.Bearing.y - ch.Size.y / 2.0f) * txtScale;
 
-            RenderText(g_RenderData.mutAminoAcids[i], xPos, yPos, txtScale, txtCol, true);
+            RenderText(localData.mutAminoAcids[i], xPos, yPos, txtScale, txtCol, true);
             
             int val = i + 1;
             float numScale = 0.48f;
@@ -614,10 +627,10 @@ void runEngineLoop() {
         glDisable(GL_SCISSOR_TEST);
 
         // textos dos headers
-        std::string txtRef = "REFERENCIA - " + g_RenderData.transcriptId + " - " + std::to_string(nRef) + " aminoacidos";
+        std::string txtRef = "REFERENCIA - " + localData.transcriptId + " - " + std::to_string(nRef) + " aminoacidos";
         RenderText(txtRef, 30.0f, 25.0f, 0.6f, Vec3(0.15f, 0.40f, 0.30f), false);
 
-        std::string txtMut = "MUTANTE - " + g_RenderData.mutationHgvs + " - frameshift - " + std::to_string(nMut) + " aminoacidos";
+        std::string txtMut = "MUTANTE - " + localData.mutationHgvs + " - frameshift - " + std::to_string(nMut) + " aminoacidos";
         RenderText(txtMut, 30.0f, 209.0f, 0.6f, Vec3(0.65f, 0.20f, 0.20f), false);
 
         glfwSwapBuffers(g_Window);
