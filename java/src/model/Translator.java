@@ -36,8 +36,8 @@ public class Translator {
     public String applyMutation(Mutation mutation, String cdsRef){
         int pos_mutation = mutation.getPosition() - 1;
         
-        String before = cdsRef.substring(0,pos_mutation );
-        String after = cdsRef.substring(pos_mutation, mutation.getDeleteLength());
+        String before = cdsRef.substring(0, pos_mutation);
+        String after = cdsRef.substring(pos_mutation + mutation.getDeleteLength());
     
         return before + mutation.getInsertSeq() + after;
     }
@@ -87,13 +87,21 @@ public class Translator {
     	int[] divergentPositions = divergenceTwoProtein(protein_reference, protein_mutation);
     	int firstDivergentPosition = 
     			divergentPositions.length > 0 ? divergentPositions[0] : -1;
+    	
+    	int insertedBaseIndex = -1;
+    	if (mutation.getDeleteLength() == 0 && !mutation.getInsertSeq().isEmpty()) {
+    		insertedBaseIndex = mutation.getPosition() - 1;
+    	}
     
     	return new ProteinResult(
+    			cds_reference,
+    			cds_mutation,
     			protein_reference,
     			protein_mutation,
     			isFrameshift,
     			firstDivergentPosition,
-    			divergentPositions
+    			divergentPositions,
+    			insertedBaseIndex
     	);
     }
 }
