@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <string>
+#include <mutex>
 
 // dados de renderização compartilhados entre JNI e o motor gráfico
 struct RenderData {
@@ -18,6 +19,7 @@ struct RenderData {
 };
 
 extern RenderData g_RenderData;
+extern std::mutex g_RenderMutex;
 
 void initEngine();
 void runEngineLoop();
