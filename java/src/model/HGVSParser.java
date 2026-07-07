@@ -39,9 +39,18 @@ public class HGVSParser {
             }
             //DELEÇÃO SINGULAR
             else if ((m = RE_DEL_SINGLE.matcher(hgvs)).matches()) {
-                String del_seq = m.group(2).toUpperCase();
+                String del_seq = m.group(2);
 
                 int pos1 = Integer.parseInt(m.group(1));
+
+                int delLen;
+
+                if(del_seq != null){
+                    del_seq = del_seq.toUpperCase();
+                    delLen = del_seq.length();
+                }else{
+                    delLen=1;
+                }
                 
                 //porção insertSeq do construtor vazia pois a operação é de deleção, logo nã há inserção.
                 return new Mutation(pos1, del_seq.length(),"", MutationType.DELETION);
