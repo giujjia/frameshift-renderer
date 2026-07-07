@@ -53,7 +53,7 @@ public class HGVSParser {
                 }
                 
                 //porção insertSeq do construtor vazia pois a operação é de deleção, logo nã há inserção.
-                return new Mutation(pos1, del_seq.length(),"", MutationType.DELETION);
+                return new Mutation(pos1, delLen,"", MutationType.DELETION);
             }
             //DELEÇÃO MULTIPLA
             else if ((m = RE_DEL_RANGE.matcher(hgvs)).matches()) {
