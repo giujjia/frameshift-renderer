@@ -11,6 +11,15 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.EventQueue;
 
+import model.ProteinResult;
+import service.MutationService;
+import service.ValidationService;
+
+import jni.OpenGLBridge;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+import java.awt.EventQueue;
+
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.border.EmptyBorder;
@@ -40,12 +49,13 @@ public class MainWindow extends JFrame {
 	private JTextField entradaID;
 	private JTextField entradaHGVS;
 	private ProteinResult resultadoAtual;
-	private JTextPane visREsultado;
+	private JTextPane visResultado;
 	private JScrollBar scrollBar;
 	private JButton btnIrMutacao;
 	private JButton btnVisualizar;
 	private JScrollPane Resultado;
 	private boolean janelaAberta = false;
+
 
 
 
@@ -131,10 +141,10 @@ public class MainWindow extends JFrame {
 		Resultado = new JScrollPane();
 		Resultado.setBounds(309, 41, 645, 132);		
 		panel_1.add(Resultado);		
-		visREsultado = new JTextPane();
-		visREsultado.setFont(new Font("FiraCode Nerd Font Light", Font.PLAIN, 12));
-		visREsultado.setEditable(false);
-		Resultado.setViewportView(visREsultado);
+		visResultado = new JTextPane();
+		visResultado.setFont(new Font("FiraCode Nerd Font Light", Font.PLAIN, 12));
+		visResultado.setEditable(false);
+		Resultado.setViewportView(visResultado);
 		
 		
 		
@@ -166,12 +176,11 @@ public class MainWindow extends JFrame {
 			public void actionPerformed(ActionEvent arg0) {
 				//tratamento de erro resultado null
 				if(resultadoAtual == null) {
-					mostrarAviso("Nenhuma mutação processada ainda");
+					mostrarMensagem("Nenhuma mutação processada ainda", "Aviso");
 					return;
-				}else {
-					btnIrMutacao.setToolTipText("Abrir Frameshit Mutation Visualizer");
-
 				}
+	
+					btnIrMutacao.setToolTipText("Abrir Frameshit Mutation Visualizer");		
 
 					int divIndex = resultadoAtual.getFirstDivergentPosition();
 					if (divIndex >= 0) {
@@ -179,7 +188,7 @@ public class MainWindow extends JFrame {
 						float offset = Math.max(0.0f, cx - (1000.0f - 34.0f) / 2.0f);		
 						abrirVisualizacao(offset);						
 					} else {
-						mostrarAviso("Não há posição de mutação divergente");
+						mostrarMensagem("Não há posição de mutação divergente", "Aviso");
 					}
 				}
 		});
@@ -197,26 +206,27 @@ public class MainWindow extends JFrame {
 				String id = entradaID.getText().trim();
 				String hgvs = entradaHGVS.getText().trim();
 				
-				if(id.isBlank() || hgvs.isBlank()) {
-					mostrarAviso("Preencha todos os campos");
+				//valida formato das entradas
+				if(!ValidationService.validateTranscript(id)){
+					mostrarMensagem("Coloque uma entrada válida em \"ID do Transcrito\"", "Erro");
 					return;
 				}
-				
-				
+				if(!ValidationService.validateHGVS(hgvs)) {
+					mostrarMensagem("Coloque uma entrada válida em \"HGVS\"", "Erro");
+					return;	
+				} 
 				//processa mutação
-				processarMutacao(id,hgvs);
-							
-				//reconfigura ScrollBar
-				configurarScrollBar(resultadoAtual);
-				
-				// mostra resultado na tela
-				exibirResultado(resultadoAtual);
-				
-				//ponte
-				OpenGLBridge.prepare(resultadoAtual, id, hgvs);
-				
-				//se ponte feita com sucesso habilita botão
-				btnIrMutacao.setEnabled(true);
+				try {
+				    resultadoAtual = MutationService.processarMutacao(id, hgvs);
+
+				    configurarScrollBar(resultadoAtual);
+				    exibirResultado(resultadoAtual);
+				    OpenGLBridge.prepare(resultadoAtual, id, hgvs);
+				    btnIrMutacao.setEnabled(true);
+
+				} catch (IllegalArgumentException | IllegalStateException e) {
+				    mostrarMensagem(e.getMessage(), "Erro");
+				}
 
 			}
 			
@@ -244,54 +254,6 @@ public class MainWindow extends JFrame {
 		    scrollBar.setValue((int) offset);
 	}
 	
-	private void processarMutacao(String id, String hgvs) {
-		//pega dados do tvs
-		String[] metadado = FileLoader.findCdsMetadata(id);
-		if(metadado == null) {
-			mostrarErro("Transcrito não encontrado");
-			return;
-		}
-		
-		//pega sequencia
-		String dna = FileLoader.findFastaSequence(id);
-		if(dna == null) {
-			mostrarErro("Sequência não encontrada");
-			return;
-		}
-		
-		//criação do transcript
-		Transcript transcript = new Transcript(
-				metadado[0],                   // nmId
-			    dna,                           // sequência
-			    metadado[1],                   // npId
-			    Integer.parseInt(metadado[2]), // cds_start
-			    Integer.parseInt(metadado[3])  // cds_end
-			    );  
-		//criação da mutação
-		Mutation mutation = HGVSParser.parse(hgvs);
-		if(mutation == null) {
-			JOptionPane.showMessageDialog(
-				MainWindow.this,
-				"Mutação HGVS inválida",
-				"Erro",
-				JOptionPane.ERROR_MESSAGE
-			);
-			return;
-		}
-		//Translator
-		Translator translator = new Translator();
-		resultadoAtual = translator.process(transcript, mutation);
-		if(resultadoAtual == null) {
-			JOptionPane.showMessageDialog(
-				MainWindow.this,
-				"Não foi possível processar a mutação",
-				"Erro",
-				JOptionPane.ERROR_MESSAGE
-			);
-			return;
-		}
-	}
-	
 	private void configurarScrollBar(ProteinResult resultadoAtual) {
 		try {
 			if (resultadoAtual != null) {
@@ -310,7 +272,7 @@ public class MainWindow extends JFrame {
 				scrollBar.setValue(0);
 			}
 		} catch (Exception ex) {
-			mostrarErro("Erro ao configurar limites");
+			mostrarMensagem("Erro ao configurar limites", "Erro");
 		}
 		
 	}
@@ -331,22 +293,31 @@ public class MainWindow extends JFrame {
 				    resultadoAtual.isFrameshift() +
 				    "</html>";
 			
-			visREsultado.setText(resultadoTexto);
-			visREsultado.setContentType("text/html");
-			visREsultado.setText(resultadoTexto);
+			visResultado.setContentType("text/html");
+			visResultado.setText(resultadoTexto);
 	}
 	 
-	private void mostrarErro(String mensagem) {
-		JOptionPane.showMessageDialog(MainWindow.this, 
-				mensagem, "Erro", 
-				JOptionPane.ERROR_MESSAGE);
+	private void mostrarMensagem(String mensagem, String tipo_de_mensagem) {
+		int tipo = 0;
+		
+		switch (tipo_de_mensagem) {
+		case "Erro":
+			tipo = JOptionPane.ERROR_MESSAGE;
+			break;
+		case "Aviso":
+			tipo = JOptionPane.WARNING_MESSAGE;
+			break;
+		case "Informação":
+			tipo = JOptionPane.INFORMATION_MESSAGE;
+			break;
+		default: 
+			tipo = JOptionPane.INFORMATION_MESSAGE;
+		}
+	  
+		JOptionPane.showMessageDialog(MainWindow.this, mensagem, tipo_de_mensagem, tipo);
 	}
 	
-	private void mostrarAviso(String mensagem) {
-		JOptionPane.showMessageDialog(MainWindow.this,
-				mensagem, "Alerta",
-				JOptionPane.WARNING_MESSAGE);	
-	}
+	
 
 	
 
