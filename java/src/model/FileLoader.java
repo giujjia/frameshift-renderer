@@ -1,15 +1,17 @@
 package model;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
 public class FileLoader {
 	private static final String PASTA_DADOS = "data";
-
+	private static final String HISTORICO = "Historico.txt";
 	static boolean isEqualsIdLine(String id, String line){
 		String idLinha = line.substring(1, line.indexOf(" "));
 		String baseProcurado = id.contains(".") ? id.substring(0, id.indexOf(".")) : id;
@@ -62,6 +64,36 @@ public class FileLoader {
 		}
 		return null;
 	}
+
+	public static ArrayList<String> abrir_historico() {
+		Path caminhoArquivo = Path.of(PASTA_DADOS, HISTORICO);
+		String line;
+		ArrayList<String> lista = new ArrayList<>();
+		
+		try (BufferedReader read = Files.newBufferedReader(caminhoArquivo)) {
+			while((line = read.readLine())!= null) {
+				lista.add(line);
+			}
+		} catch (Exception erro) {
+			System.err.println(erro.getMessage());
+		}
+		return lista;
+	}
+	public static void salvar_historico(ArrayList<String> lista) {
+		if(lista == null) return;
+		
+		Path caminhoArquivo = Path.of(PASTA_DADOS, HISTORICO);
+		try(BufferedWriter writer = Files.newBufferedWriter(caminhoArquivo)){
+			for(String l : lista) {
+				writer.append(l);
+			}
+		}catch(Exception erro) {
+			System.err.println(erro.getMessage());
+		}
+	}
+	
+	
+	
 
     
     /* nao sei se vai ser usado

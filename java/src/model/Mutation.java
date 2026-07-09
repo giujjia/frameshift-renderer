@@ -40,4 +40,7 @@ public class Mutation {
 	public String getInsertSeq() {
 		return insertSeq;
 	}
+	public MutationType  getType() {
+		return this.type;
+	}
 }
