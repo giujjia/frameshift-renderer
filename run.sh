@@ -1,17 +1,37 @@
 #!/bin/bash
+set -e
 
-# compila a biblioteca nativa c++
-cd native
-mkdir -p build
-cd build
+# Vai para a pasta onde o script está localizado
+cd "$(dirname "$0")"
+
+echo "============================================================"
+echo "Building native C++ library"
+echo "============================================================"
+
+mkdir -p native/build
+cd native/build
+
 cmake -DCMAKE_BUILD_TYPE=Release ..
-make
+cmake --build . -j"$(nproc)"
+
 cd ../..
 
-# compila a interface java
+echo "============================================================"
+echo "Compiling Java sources"
+echo "============================================================"
+
 cd java
 mkdir -p build
-javac -d build src/jni/OpenGLBridge.java src/model/*.java src/ui/MainWindow.java src/main/Main.java
 
-# executa a aplicacao integrada
-java -cp build -Djava.library.path=../native/build main.Main
+# Compila todos os .java do projeto, incluindo model, service, jni e main
+find src -name "*.java" > sources.txt
+javac -encoding UTF-8 -d build @sources.txt
+
+echo "============================================================"
+echo "Running ShiftGL - Frameshift Mutation Visualizer"
+echo "============================================================"
+
+java \
+  -Djava.library.path=../native/build \
+  -cp build \
+  main.MainWindow
