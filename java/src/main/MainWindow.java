@@ -41,6 +41,10 @@ import javax.swing.JTextPane;
 import javax.swing.border.LineBorder;
 import java.awt.event.AdjustmentListener;
 import java.awt.event.AdjustmentEvent;
+import javax.swing.JMenuItem;
+import javax.swing.JComboBox;
+
+
 
 public class MainWindow extends JFrame {
 
@@ -78,7 +82,7 @@ public class MainWindow extends JFrame {
 	//definição de componentes e ação da tela
 	public MainWindow() {
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setBounds(100, 100, 1002, 399);
+		setBounds(100, 100, 1002, 483);
 		contentPane = new JPanel();
 		contentPane.setBackground(new Color(255, 255, 255));
 		contentPane.setBorder(new EmptyBorder(5, 5, 5, 5));
@@ -100,7 +104,7 @@ public class MainWindow extends JFrame {
 		JPanel panel_1 = new JPanel();
 		panel_1.setBorder(new LineBorder(new Color(0, 0, 0)));
 		panel_1.setBackground(new Color(255, 255, 255));
-		panel_1.setBounds(12, 98, 978, 204);
+		panel_1.setBounds(12, 98, 978, 236);
 		contentPane.add(panel_1);
 		panel_1.setLayout(null);
 		
@@ -133,7 +137,7 @@ public class MainWindow extends JFrame {
 		
 		JLabel lblNewLabel = new JLabel("Utilize para mover a câmera");
 		lblNewLabel.setFont(new Font("FiraCode Nerd Font Light", Font.BOLD, 14));
-		lblNewLabel.setBounds(360, 314, 263, 17);
+		lblNewLabel.setBounds(359, 344, 263, 17);
 		contentPane.add(lblNewLabel);
 		
 		
@@ -152,7 +156,7 @@ public class MainWindow extends JFrame {
 		scrollBar = new JScrollBar(JScrollBar.HORIZONTAL,0,100,0,100);		
 		scrollBar.setToolTipText("Visualize uma mutação para habilitar este controle");
 		scrollBar.setOrientation(JScrollBar.HORIZONTAL);
-		scrollBar.setBounds(12, 342, 978, 17);
+		scrollBar.setBounds(12, 371, 978, 17);
 		
 		contentPane.add(scrollBar);
 		//ação do botão - move a camera
@@ -201,11 +205,37 @@ public class MainWindow extends JFrame {
 		btnVisualizar.setBounds(12, 146, 117, 27);
 		panel_1.add(btnVisualizar);
 		
+		
+		JComboBox comboBox = new JComboBox();
+		HistoricoWindow historico = new HistoricoWindow();
+		comboBox.addItem("Selecione uma operação:");
+		for(String item: historico.getHistorico()) {
+			comboBox.addItem(item);
+		}
+			
+		
+		comboBox.addActionListener(new ActionListener() {
+			public void actionPerformed(ActionEvent e) {
+				String selecionado = (String) comboBox.getSelectedItem();
+
+
+			    String[] partes = selecionado.split("\\|");
+			    entradaID.setText(partes[0].trim());
+			    entradaHGVS.setText(partes[1].trim());
+				
+				
+			}
+	});
+		comboBox.setToolTipText("Histórico");
+		comboBox.setBounds(80, 189, 156, 20);
+		panel_1.add(comboBox);
+
+		
 		btnVisualizar.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				String id = entradaID.getText().trim();
 				String hgvs = entradaHGVS.getText().trim();
-				
+				HistoricoWindow historico = new HistoricoWindow();
 				//valida formato das entradas
 				if(!ValidationService.validateTranscript(id)){
 					mostrarMensagem("Coloque uma entrada válida em \"ID do Transcrito\"", "Erro");
@@ -215,6 +245,8 @@ public class MainWindow extends JFrame {
 					mostrarMensagem("Coloque uma entrada válida em \"HGVS\"", "Erro");
 					return;	
 				} 
+				historico.adicionar_historico(id, hgvs);
+				historico.salvar();
 				//processa mutação
 				try {
 				    resultadoAtual = MutationService.processarMutacao(id, hgvs);
@@ -316,11 +348,6 @@ public class MainWindow extends JFrame {
 	  
 		JOptionPane.showMessageDialog(MainWindow.this, mensagem, tipo_de_mensagem, tipo);
 	}
-	
-	
-
-	
-
 }
 
 	

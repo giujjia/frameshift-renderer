@@ -65,34 +65,53 @@ public class FileLoader {
 		return null;
 	}
 
+	
 	public static ArrayList<String> abrir_historico() {
-		Path caminhoArquivo = Path.of(PASTA_DADOS, HISTORICO);
-		String line;
-		ArrayList<String> lista = new ArrayList<>();
-		
-		try (BufferedReader read = Files.newBufferedReader(caminhoArquivo)) {
-			while((line = read.readLine())!= null) {
-				lista.add(line);
-			}
-		} catch (Exception erro) {
-			System.err.println(erro.getMessage());
-		}
-		return lista;
+	    Path caminhoArquivo = Path.of(PASTA_DADOS, HISTORICO);
+	    ArrayList<String> lista = new ArrayList<>();
+
+	    try {
+	        Files.createDirectories(caminhoArquivo.getParent());
+
+	        if (!Files.exists(caminhoArquivo)) {
+	            Files.createFile(caminhoArquivo);
+	            return lista;
+	        }
+
+	        try (BufferedReader read = Files.newBufferedReader(caminhoArquivo)) {
+	            String line;
+	            while ((line = read.readLine()) != null) {
+	                lista.add(line);
+	            }
+	        }
+
+	    } catch (Exception erro) {
+	        erro.printStackTrace();
+	    }
+
+	    return lista;
 	}
+	
+	
 	public static void salvar_historico(ArrayList<String> lista) {
-		if(lista == null) return;
-		
-		Path caminhoArquivo = Path.of(PASTA_DADOS, HISTORICO);
-		try(BufferedWriter writer = Files.newBufferedWriter(caminhoArquivo)){
-			for(String l : lista) {
-				writer.append(l);
-			}
-		}catch(Exception erro) {
-			System.err.println(erro.getMessage());
-		}
+	    if (lista == null) return;
+
+	    Path caminhoArquivo = Path.of(PASTA_DADOS, HISTORICO);
+
+	    try {
+	        Files.createDirectories(caminhoArquivo.getParent());
+
+	        try (BufferedWriter writer = Files.newBufferedWriter(caminhoArquivo)) {
+	            for (String l : lista) {
+	                writer.append(l);
+	                writer.newLine();
+	            }
+	        }
+
+	    } catch (Exception erro) {
+	        erro.printStackTrace();
+	    }
 	}
-	
-	
 	
 
     
