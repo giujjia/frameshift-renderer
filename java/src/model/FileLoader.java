@@ -82,6 +82,7 @@ public class FileLoader {
 	            String line;
 	            while ((line = read.readLine()) != null) {
 	                lista.add(line);
+	                System.out.println("Jcombobox: "+ line);
 	            }
 	        }
 
@@ -103,7 +104,7 @@ public class FileLoader {
 
 	        try (BufferedWriter writer = Files.newBufferedWriter(caminhoArquivo)) {
 	            for (String l : lista) {
-	                writer.append(l);
+	            	writer.append(l);
 	                writer.newLine();
 	            }
 	        }

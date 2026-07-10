@@ -33,6 +33,7 @@ import javax.swing.JSeparator;
 import javax.swing.SwingConstants;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import java.awt.event.ActionListener;
 import java.awt.event.ActionEvent;
@@ -40,9 +41,11 @@ import javax.swing.JScrollBar;
 import javax.swing.JTextPane;
 import javax.swing.border.LineBorder;
 import java.awt.event.AdjustmentListener;
+import java.util.Vector;
 import java.awt.event.AdjustmentEvent;
 import javax.swing.JMenuItem;
 import javax.swing.JComboBox;
+
 
 
 
@@ -59,8 +62,9 @@ public class MainWindow extends JFrame {
 	private JButton btnVisualizar;
 	private JScrollPane Resultado;
 	private boolean janelaAberta = false;
-
-
+	HistoricoWindow historico;
+	private JComboBox<String> historicoBox;
+	DefaultComboBoxModel<String> model;
 
 
 
@@ -206,36 +210,60 @@ public class MainWindow extends JFrame {
 		panel_1.add(btnVisualizar);
 		
 		
-		JComboBox comboBox = new JComboBox();
-		HistoricoWindow historico = new HistoricoWindow();
-		comboBox.addItem("Selecione uma operação:");
-		for(String item: historico.getHistorico()) {
-			comboBox.addItem(item);
-		}
+		historico = new HistoricoWindow();
+		
+		Vector<String> vetor = new Vector<>(historico.getHistorico());
+		model = new DefaultComboBoxModel<>(vetor);
+		historicoBox = new JComboBox<>(model);
+		
+		historicoBox.insertItemAt("Selecione uma opção:", 0);
+		historicoBox.setSelectedIndex(0);
 			
 		
-		comboBox.addActionListener(new ActionListener() {
+		historicoBox.addActionListener(new ActionListener() {
+		    public void actionPerformed(ActionEvent e) {
+		        if (historicoBox.getSelectedIndex() == 0) {
+		            return; // ignora o placeholder, que não tem "|"
+		        }
+		        String selecionado = (String) historicoBox.getSelectedItem();
+		        String[] partes = selecionado.split("\\|", -1); // -1 preserva campos vazios
+
+		        if (partes.length < 2) {
+		            return; // entrada malformada
+		        }
+
+		        entradaID.setText(partes[0].trim());
+		        entradaHGVS.setText(partes[1].trim());
+		    }
+		});
+		historicoBox.setToolTipText("Histórico");
+		historicoBox.setBounds(10, 199, 275, 27);
+		panel_1.add(historicoBox);
+		
+		JLabel lblNewLabel_1 = new JLabel("Histórico");
+		lblNewLabel_1.setFont(new Font("Dialog", Font.BOLD, 15));
+		lblNewLabel_1.setBounds(12, 179, 136, 17);
+		panel_1.add(lblNewLabel_1);
+		
+		JButton btnNewButton = new JButton("Excluir Historico");
+		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
-				String selecionado = (String) comboBox.getSelectedItem();
-
-
-			    String[] partes = selecionado.split("\\|");
-			    entradaID.setText(partes[0].trim());
-			    entradaHGVS.setText(partes[1].trim());
-				
+				historico.limpar_historico();
+				historico.salvar();
+				atualizarComboBoxHistorico(historicoBox);
 				
 			}
-	});
-		comboBox.setToolTipText("Histórico");
-		comboBox.setBounds(80, 189, 156, 20);
-		panel_1.add(comboBox);
-
+		});
+		btnNewButton.setFont(new Font("Tahoma", Font.PLAIN, 11));
+		btnNewButton.setBounds(307, 198, 121, 27);
+		panel_1.add(btnNewButton);
+		
+		
 		
 		btnVisualizar.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent arg0) {
 				String id = entradaID.getText().trim();
 				String hgvs = entradaHGVS.getText().trim();
-				HistoricoWindow historico = new HistoricoWindow();
 				//valida formato das entradas
 				if(!ValidationService.validateTranscript(id)){
 					mostrarMensagem("Coloque uma entrada válida em \"ID do Transcrito\"", "Erro");
@@ -245,8 +273,8 @@ public class MainWindow extends JFrame {
 					mostrarMensagem("Coloque uma entrada válida em \"HGVS\"", "Erro");
 					return;	
 				} 
-				historico.adicionar_historico(id, hgvs);
-				historico.salvar();
+				
+				
 				//processa mutação
 				try {
 				    resultadoAtual = MutationService.processarMutacao(id, hgvs);
@@ -255,6 +283,10 @@ public class MainWindow extends JFrame {
 				    exibirResultado(resultadoAtual);
 				    OpenGLBridge.prepare(resultadoAtual, id, hgvs);
 				    btnIrMutacao.setEnabled(true);
+				    
+				    historico.adicionar_historico(id, hgvs);
+					historico.salvar();
+					atualizarComboBoxHistorico(historicoBox);
 
 				} catch (IllegalArgumentException | IllegalStateException e) {
 				    mostrarMensagem(e.getMessage(), "Erro");
@@ -264,6 +296,8 @@ public class MainWindow extends JFrame {
 			
 		});
 		
+		
+
 	}
 	//MÉTODOS -------------------------------------------------------------------------------------------------
 	private void abrirVisualizacao(float offset) {
@@ -348,7 +382,22 @@ public class MainWindow extends JFrame {
 	  
 		JOptionPane.showMessageDialog(MainWindow.this, mensagem, tipo_de_mensagem, tipo);
 	}
+	private void atualizarComboBoxHistorico(JComboBox<String> comboBox) {
+        // Pega o histórico atualizado
+        Vector<String> vetor = new Vector<>(historico.getHistorico());
+        
+        // Cria um novo modelo de dados
+        model = new DefaultComboBoxModel<>(vetor);
+        
+        // Aplica o novo modelo ao JComboBox que já está na tela
+        comboBox.setModel(model);
+        
+       
+        comboBox.insertItemAt("Selecione uma operação:", 0);
+        comboBox.setSelectedIndex(0); // Seleciona o placeholder
+    }
 }
+
 
 	
 
