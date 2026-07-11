@@ -292,7 +292,7 @@ void runEngineLoop() {
     setOrthoMatrix(0.0f, (float)SCR_WIDTH, (float)SCR_HEIGHT, 0.0f, -1.0f, 1.0f, projection);
 
     while (!glfwWindowShouldClose(g_Window)) {
-        glClearColor(0.07f, 0.07f, 0.09f, 1.0f);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         // copia dados de renderizacao sob lock do mutex
