@@ -23,6 +23,6 @@ public class HistoricoWindow {
 		FileLoader.salvar_historico(historico);
 	}
 	public ArrayList<String> getHistorico() {
-	    return historico;
+		return this.historico;
 	}
 }
