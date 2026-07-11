@@ -30,6 +30,29 @@ public class Transcript {
 	public String getCdsRegion() {
 		return sequence_nm.substring(this.getOrf(), cds_end);
 	}
+
+	public String getNmId() {
+		return nmId;
+	}
+
+	public String getSequence_nm() {
+		return sequence_nm;
+	}
+
+	public String getNpId() {
+		return npId;
+	}
+
+	public int getCds_start() {
+		return cds_start;
+	}
+
+	public int getCds_end() {
+		return cds_end;
+	}
+	
+	
+	
 	
 }
 	
